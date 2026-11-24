@@ -50,7 +50,6 @@ while True:
             pygame.quit()
             sys.exit()
 
-        # Troca de telas ao apertar ESPACO ou CLICAR/TOCAR
         if (evento.type == pygame.KEYDOWN and evento.key == pygame.K_SPACE) or evento.type == pygame.MOUSEBUTTONDOWN:
             if estado == "INICIAR":
                 estado = "JOGANDO"
@@ -64,7 +63,7 @@ while True:
 
     tela.fill((15, 15, 25))
 
-    # Atualiza e desenha as estrelas no fundo em todas as telas
+    # Atualiza e desenha as estrelas no fundo
     for estrela in estrelas:
         estrela[1] += 2
         if estrela[1] > ALTURA:
@@ -88,14 +87,11 @@ while True:
         toque_ativo = pygame.mouse.get_pressed()[0]
         pos_toque_x = pygame.mouse.get_pos()[0]
 
-        # Move para a esquerda (Seta Esquerda OU toque na metade esquerda)
         if (teclas[pygame.K_LEFT] or (toque_ativo and pos_toque_x < LARGURA // 2)) and nave.left > 0:
             nave.x -= velocidade_nave
-        # Move para a direita (Seta Direita OU toque na metade direita)
         if (teclas[pygame.K_RIGHT] or (toque_ativo and pos_toque_x >= LARGURA // 2)) and nave.right < LARGURA:
             nave.x += velocidade_nave
 
-        # Aumenta velocidade dos meteoros conforme a pontuacao sobe
         velocidade_atual = velocidade_meteoro + (pontos // 10)
         chance_spawn = max(25, 70 - (pontos // 5) * 3)
 
