@@ -9,12 +9,16 @@ tela = pygame.display.set_mode((LARGURA, ALTURA))
 pygame.display.set_caption("Desvio de Meteoros")
 relogio = pygame.time.Clock()
 
-# Configurações do jogador e obstáculos
+# Configurações do jogador, obstáculos e recorde
 nave = pygame.Rect(325, 520, 50, 50)
 velocidade_nave = 7
 meteoros = []
 velocidade_meteoro = 6
 pontos = 0
+recorde = 0
+
+# Fundo estrelado (30 estrelas em posições aleatórias)
+estrelas = [[random.randint(0, LARGURA), random.randint(0, ALTURA)] for _ in range(30)]
 
 # Configurações da explosão
 particulas = []
@@ -23,7 +27,7 @@ tempo_explosao = 0
 # Fontes e Estado inicial
 fonte = pygame.font.SysFont(None, 36)
 fonte_titulo = pygame.font.SysFont(None, 64)
-estado = "INICIAR"  # Estados: "INICIAR", "JOGANDO", "EXPLODINDO", "FIM"
+estado = "INICIAR"
 
 def criar_explosao(x, y):
     particulas.clear()
@@ -46,12 +50,13 @@ while True:
             pygame.quit()
             sys.exit()
 
-        # Troca de telas ao apertar ESPACO ou CLICAR/TOCAR na tela
+        # Troca de telas ao apertar ESPACO ou CLICAR/TOCAR
         if (evento.type == pygame.KEYDOWN and evento.key == pygame.K_SPACE) or evento.type == pygame.MOUSEBUTTONDOWN:
             if estado == "INICIAR":
                 estado = "JOGANDO"
             elif estado == "FIM":
                 pontos = 0
+                velocidade_meteoro = 6
                 meteoros.clear()
                 particulas.clear()
                 nave.x = 325
@@ -59,11 +64,19 @@ while True:
 
     tela.fill((15, 15, 25))
 
+    # Atualiza e desenha as estrelas no fundo em todas as telas
+    for estrela in estrelas:
+        estrela[1] += 2
+        if estrela[1] > ALTURA:
+            estrela[1] = 0
+            estrela[0] = random.randint(0, LARGURA)
+        pygame.draw.circle(tela, (100, 100, 130), (estrela[0], estrela[1]), 2)
+
     # --- TELA 1: INICIAR ---
     if estado == "INICIAR":
         titulo = fonte_titulo.render("DESVIO DE METEOROS", True, (0, 200, 255))
-        instrucao = fonte.render("Pressione ESPACO ou CLIQUE para iniciar", True, (255, 255, 255))
-        controles = fonte.render("Use as SETAS para desviar", True, (180, 180, 200))
+        instrucao = fonte.render("Pressione ESPACO ou TOQUE para iniciar", True, (255, 255, 255))
+        controles = fonte.render("PC: Setas | Celular: Toque nos lados da tela", True, (180, 180, 200))
 
         tela.blit(titulo, (LARGURA // 2 - titulo.get_width() // 2, 200))
         tela.blit(instrucao, (LARGURA // 2 - instrucao.get_width() // 2, 300))
@@ -72,26 +85,36 @@ while True:
     # --- TELA 2: JOGANDO ---
     elif estado == "JOGANDO":
         teclas = pygame.key.get_pressed()
-        if teclas[pygame.K_LEFT] and nave.left > 0:
+        toque_ativo = pygame.mouse.get_pressed()[0]
+        pos_toque_x = pygame.mouse.get_pos()[0]
+
+        # Move para a esquerda (Seta Esquerda OU toque na metade esquerda)
+        if (teclas[pygame.K_LEFT] or (toque_ativo and pos_toque_x < LARGURA // 2)) and nave.left > 0:
             nave.x -= velocidade_nave
-        if teclas[pygame.K_RIGHT] and nave.right < LARGURA:
+        # Move para a direita (Seta Direita OU toque na metade direita)
+        if (teclas[pygame.K_RIGHT] or (toque_ativo and pos_toque_x >= LARGURA // 2)) and nave.right < LARGURA:
             nave.x += velocidade_nave
 
-        if random.randint(1, 70) == 1:
+        # Aumenta velocidade dos meteoros conforme a pontuacao sobe
+        velocidade_atual = velocidade_meteoro + (pontos // 10)
+        chance_spawn = max(25, 70 - (pontos // 5) * 3)
+
+        if random.randint(1, chance_spawn) == 1:
             pos_x = random.randint(0, LARGURA - 40)
             novo_meteoro = pygame.Rect(pos_x, -40, 40, 40)
             meteoros.append(novo_meteoro)
 
         for meteoro in meteoros[:]:
-            meteoro.y += velocidade_meteoro
+            meteoro.y += velocidade_atual
             if meteoro.top > ALTURA:
                 meteoros.remove(meteoro)
                 pontos += 1
+                if pontos > recorde:
+                    recorde = pontos
 
-            # Ao bater, dispara a explosao no centro da nave!
             if nave.colliderect(meteoro):
                 criar_explosao(nave.centerx, nave.centery)
-                tempo_explosao = 60  # Dura 60 quadros (1 segundo)
+                tempo_explosao = 60
                 estado = "EXPLODINDO"
 
         # Desenha o Jogador (Azul) + Carinha do Bem
@@ -111,16 +134,14 @@ while True:
             boca_mal = pygame.Rect(meteoro.x + 10, meteoro.y + 24, 20, 12)
             pygame.draw.arc(tela, (15, 15, 25), boca_mal, 0, 3.14, 3)
 
-        texto_pontos = fonte.render(f"Pontos: {pontos}", True, (255, 255, 255))
+        texto_pontos = fonte.render(f"Pontos: {pontos}  |  Recorde: {recorde}", True, (255, 255, 255))
         tela.blit(texto_pontos, (15, 15))
 
     # --- TELA 2.5: EXPLODINDO ---
     elif estado == "EXPLODINDO":
-        # Mantem os meteoros visiveis no fundo durante a explosao
         for meteoro in meteoros:
             pygame.draw.rect(tela, (255, 70, 70), meteoro, border_radius=6)
 
-        # Atualiza e desenha os estilhacos da explosao
         for p in particulas:
             p["x"] += p["vx"]
             p["y"] += p["vy"]
@@ -128,7 +149,7 @@ while True:
             if p["tamanho"] > 0:
                 pygame.draw.circle(tela, p["cor"], (int(p["x"]), int(p["y"])), int(p["tamanho"]))
 
-        texto_pontos = fonte.render(f"Pontos: {pontos}", True, (255, 255, 255))
+        texto_pontos = fonte.render(f"Pontos: {pontos}  |  Recorde: {recorde}", True, (255, 255, 255))
         tela.blit(texto_pontos, (15, 15))
 
         tempo_explosao -= 1
@@ -138,8 +159,8 @@ while True:
     # --- TELA 3: FIM DE JOGO ---
     elif estado == "FIM":
         fim = fonte_titulo.render("FIM DE JOGO", True, (255, 70, 70))
-        placar_final = fonte.render(f"Pontuacao Final: {pontos}", True, (255, 255, 255))
-        reiniciar = fonte.render("Pressione ESPACO ou CLIQUE para jogar de novo", True, (0, 200, 255))
+        placar_final = fonte.render(f"Pontuacao: {pontos}   |   Recorde: {recorde}", True, (255, 255, 255))
+        reiniciar = fonte.render("Pressione ESPACO ou TOQUE para jogar de novo", True, (0, 200, 255))
 
         tela.blit(fim, (LARGURA // 2 - fim.get_width() // 2, 200))
         tela.blit(placar_final, (LARGURA // 2 - placar_final.get_width() // 2, 290))
